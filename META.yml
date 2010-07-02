@@ -1,0 +1,17 @@
+--- #YAML:1.0
+name:                App-Xssh
+version:             0.1
+abstract:            Interface to launching X terminal windows
+license:             perl
+author:              
+    - Evan Giles <egiles@cpan.org>
+generated_by:        ExtUtils::MakeMaker version 6.42
+distribution_type:   module
+requires:     
+    Config::General:               2.40
+    Getopt::Long:                  2.37
+    Pod::Usage:                    1.35
+    X11::Terminal:                 0.2
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3
