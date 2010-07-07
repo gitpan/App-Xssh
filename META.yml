@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                App-Xssh
-version:             0.1
+version:             0.2
 abstract:            Interface to launching X terminal windows
 license:             perl
 author:              
