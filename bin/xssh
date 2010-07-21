@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use 5.006;
+use 5.6.0;
 
 use Getopt::Long;
 use Pod::Usage;
@@ -20,9 +20,11 @@ sub getTerminalOptions {
     $options = { %$options, %{$config->{hosts}->{$host}} };
   }
 
-  if ( my $extra = delete $options->{extra} ) {
-    if ( my $details = $config->{extra}->{$extra} ) {
-      $options = { %$options, %{$config->{extra}->{$extra}} };
+  while ( my $value = delete $options->{extra} ) {
+    for my $extra ( split(/,/,$value) ) {
+      if ( my $details = $config->{extra}->{$extra} ) {
+        $options = { %$options, %{$config->{extra}->{$extra}} };
+      }
     }
   }
 
@@ -43,19 +45,23 @@ sub launchTerminal {
 sub showConfig {
   my ($xssh) = @_;
 
-  my $data = $xssh->readConfig();
+  my $sub = sub {
+    my ($sub,$prefix,$data) = @_;
 
-  my $configString = "";
-  for my $type ( reverse sort keys %{$data} ) {
-    for my $entity ( sort keys %{$data->{$type}} ) {
-      for my $key ( sort keys %{$data->{$type}->{$entity}} ) {
-        my $value =  $data->{$type}->{$entity}->{$key};
-        my $output = sprintf("%6s\t%20s\t%10s: %s\n", $type,$entity,$key,$value);
-        $configString = $configString . $output;
+    my $rv = "";
+    for my $key ( keys %$data ) {
+      if ( ref($data->{$key}) ) {
+        $rv .= "$prefix$key\n";
+        $rv .= $sub->($sub,"$prefix  ",$data->{$key});
+      } else {
+        $rv .= "$prefix$key: $data->{$key}\n";
       }
     }
-  }
-  return $configString;
+    return $rv;
+  };
+
+  my $data = $xssh->readConfig();
+  return $sub->($sub,"",$data);
 }
 
 sub main {
@@ -117,7 +123,8 @@ xssh - A customisable X terminal emulator
 
 This program will allow you to ssh to a remote host inside a new X Terminal window (like XTerm).  
 
-The idea is that you can configure it in such a way that every time you connect to a particular host, the terminal window will be customised in the same manner.  For example, you may wish to configure 'prodserver' so that it the terminal window background is a redish colour - reminding you to tread very carefully...
+The idea here is that each time you ssh to a particular host, a terminal window will be launched with a consitent
+customised appearance.     For example, you may wish to configure 'prodserver' so that it the terminal window background is a redish colour - reminding you to tread very carefully...
 
 =head1 EXAMPLES
 
@@ -152,7 +159,7 @@ FINALLY, you can use xssh to log in to those servers
 	xssh important
 		
 	# Log in to the server "unknown" - you'll get a new xterm window
-	# with a # white background, blue text, 1024 lines of scrollback
+	# with a white background, blue text, 1024 lines of scrollback
 	xssh unknown
 	
 	# Log in to the server "favourite" - you'll get a new xterm
