@@ -3,125 +3,163 @@ package App::Xssh;
 use strict;
 use warnings;
 
-use Config::General;
+use 5.6.0;
 
-our $VERSION = 0.4;
+use Getopt::Long;
+use Pod::Usage;
+use App::Xssh::Config;
+
+our $VERSION = 0.5;
+
 =head1 NAME
 
-App::Xssh - Encapsulates the configuration for xssh - using Config::General
+App::Xssh - Encapsulates the application logic for xssh
 
 =head1 SYNOPSYS
 
-	use App:Xssh;
+	use App::Xssh;
 	
-	my $xssh = App:Xssh->new();
-	my $data = $xssh->readConfig();
-	
-	$xssh->addToConfig(["location","path","setting"],"value");
-	$xssh->saveConfig();
+	App::Xssh::main();
 =cut
 
-=head1 METHODS
+=head1 FUNCTIONS
 
 =over
 
-=item new()
+=item upgradeConfig()
 
-Construcor, just used to provide an object with access to the methods
+Remove deprecation from the config data, if it changes anything it will
+also write the config file back to disk.
+
+The deprecations are:
+
+=over
+
+=item Rename the 'extra' attribute to 'profile' (since v0.5)
+
+=back
 =cut
-sub new {
-   my $class = shift;
-   return bless {}, $class;
-}
+sub upgradeConfig {
+  my ($config,$data) = @_;
 
-sub _configFilename {
-  return "$ENV{HOME}/.xsshrc";
-}
+  my $rename = sub {
+      my ($data,$src,$dst) = @_;
+      if ( my $value = delete $data->{$src->[0]}->{$src->[1]}->{$src->[2]} ) {
+        $data->{$dst->[0]}->{$dst->[1]}->{$dst->[2]} = $value;
+        $config->add($dst,$value);
+        $config->delete($src);
+        $config->write();
+      }
+  };
 
-sub _openConfig {
-  my ($self) = @_;
-
-  if ( ! $self->{ConfigGeneral} ) {
-    my $filename = _configFilename();
-
-    if ( ! -f $filename ) {
-      if ( ! open(my $temp, ">", $filename) ) {
-        return;
+  # Rename the 'extra' attribute to 'profile'
+  for my $host ( keys %{$data->{hosts} } ) {
+    $rename->($data,["hosts",$host,"extra"],["hosts",$host,"profile"]);
+  }
+  if ( $data->{extra} ) {
+    my $extra = $data->{extra};
+    for my $name ( keys %$extra ) {
+      for my $option ( keys %{$extra->{$name}} ) {
+        $rename->($data,["extra",$name,$option],["profile",$name,$option]);
       }
     }
-    $self->{ConfigGeneral} = Config::General->new($filename);
   }
 
-  return $self->{ConfigGeneral};
+  return $data;
 }
 
-=item readConfig()
+=item getTerminalOptions()
 
-Reads the config file into memory, returns a hashref pointing to the config data
+Reads the config data and determines the options that should be applied 
+for a given host
 =cut
-sub readConfig {
-  my ($self) = @_;
+sub getTerminalOptions {
+  my ($config,$host) = @_;
 
-  if ( ! $self->{data} ) {
-    my $conf = $self->_openConfig();
-    $self->{data} = { $conf->getall() };
+  my $data = upgradeConfig($config,$config->read());
+
+  my $options = $data->{hosts}->{DEFAULT} || {};
+
+  if ( my $details = $data->{hosts}->{$host} ) {
+    $options = { %$options, %{$data->{hosts}->{$host}} };
   }
 
-  return $self->{data};
-}
-
-=item addToConfig($path,$value)
-
-Adds a data to the existing config data - in memory.   
-
-=over
-
-=item $path
-
-An arrayref to the location of the atrribute to be stored.
-
-=item $value
-
-A string to be stored at that location.
-
-=back
-=cut
-sub addToConfig {
-  my ($self,$path,$value) = @_;
-
-  my $attr = pop @$path;
-
-  my $config = $self->readConfig();
-  for my $key ( @$path ) {
-    if ( ! defined($config->{$key}) ) {
-      $config->{$key} = {};
+  while ( my $value = delete $options->{profile} ) {
+    for my $profile ( split(/,/,$value) ) {
+      if ( my $details = $data->{profile}->{$profile} ) {
+        $options = { %$options, %{$data->{profile}->{$profile}} };
+      }
     }
-    $config = $config->{$key};
   }
-  $config->{$attr} = $value;
+
+  $options->{host} = $host;
+  return($options);
 }
 
-=item saveConfig()
+=item launchTerminal()
 
-Writes the current config data back to a config file on disk.  Completely overwrites the existinng file.
+Calls the X11::Terminal class to launch an X11 terminal emulator
 =cut
-sub saveConfig{
-  my ($self) = @_;
+sub launchTerminal {
+  my ($options) = @_;
 
-  my $data = $self->readConfig();
-  my $conf = $self->_openConfig();
-  $conf->save_file(_configFilename(),$data);
-  return 1;
+  my $type = $options->{type} || "XTerm";
+  my $class = "X11::Terminal::$type";
+  eval "require $class";
+  my $term = $class->new(%$options);
+  $term->launch();
 }
+
+=item setValue()
+
+Sets a value in the config, and writes the config out
+=cut
+sub setValue {
+  my ($config,$category,$name,$option,$value) = @_;
+
+  if ( ! ($name && $option && $value) ) {
+    pod2usage(1);
+  }
+
+  $config->add([$category,$name,$option],$value);
+  $config->write();
+}
+
+=item main()
+
+This is the entry point for the xssh script.  It parses the command line
+and calls the appropraite application behaviour.
 
 =back
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2010 Evan Giles.
-
-This module is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
 =cut
+sub main {
+  my $sethost;
+  my $setprofile;
+  my $showconfig;
+  GetOptions(
+    'sethostopt' => \$sethost,
+    'setprofileopt' => \$setprofile,
+    'showconfig' => \$showconfig,
+  ) or pod2usage(1);
+  
+  my $config = App::Xssh::Config->new();
+  if ( $sethost ) {
+    setValue($config,"hosts",@ARGV);
+    return 1;
+  }
+  if ( $setprofile ) {
+    setValue($config,"profile",@ARGV);
+    return 1;
+  }
+  if ( $showconfig ) {
+    print $config->show($config);
+    return 1;
+  }
 
-1; # End of App:Xssh
+  if ( my ($host) = @ARGV ) {
+    my $options = getTerminalOptions($config,$host);
+    return launchTerminal($options);;
+  }
+}
+
+1;

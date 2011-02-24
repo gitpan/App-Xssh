@@ -3,7 +3,7 @@ use 5.6.0;
 use strict;
 use ExtUtils::MakeMaker;
 
-WriteMakefile(
+my $params = {
     NAME          => 'App::Xssh',
     ABSTRACT      => 'Interface to launching X terminal windows',
     AUTHOR        => 'Evan Giles <egiles@cpan.org>',
@@ -15,6 +15,12 @@ WriteMakefile(
                      },
     VERSION_FROM  => 'lib/App/Xssh.pm',
     EXE_FILES     => [ 'bin/xssh' ],
-    dist          => { COMPRESS=>'gzip', SUFFIX=>'gz' },
     clean         => { FILES=>'*stamp App-Xssh* debian/files debian/libapp-xssh-perl*' },
-);
+};
+
+if ( $ExtUtils::MakeMaker::VERSION gt "6.46" ) {
+  my $url = 'git://github.com/egiles/app-xssh.git';
+  $params->{META_MERGE} = { resources => { repository  => $url } };
+}
+
+WriteMakefile(%$params);

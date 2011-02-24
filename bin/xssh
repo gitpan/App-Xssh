@@ -5,106 +5,11 @@ use warnings;
 
 use 5.6.0;
 
-use Getopt::Long;
-use Pod::Usage;
 use App::Xssh;
 
-sub getTerminalOptions {
-  my ($xssh,$host) = @_;
-
-  my $config = $xssh->readConfig();
-
-  my $options = $config->{hosts}->{DEFAULT} || {};
-
-  if ( my $details = $config->{hosts}->{$host} ) {
-    $options = { %$options, %{$config->{hosts}->{$host}} };
-  }
-
-  while ( my $value = delete $options->{extra} ) {
-    for my $extra ( split(/,/,$value) ) {
-      if ( my $details = $config->{extra}->{$extra} ) {
-        $options = { %$options, %{$config->{extra}->{$extra}} };
-      }
-    }
-  }
-
-  $options->{host} = $host;
-  return($options);
+if ( !App::Xssh::main() ) {
+    exit 1;
 }
-
-sub launchTerminal {
-  my ($options) = @_;
-
-  my $type = $options->{type} || "XTerm";
-  my $class = "X11::Terminal::$type";
-  eval "require $class";
-  my $term = $class->new(%$options);
-  $term->launch();
-}
-
-sub showConfig {
-  my ($xssh) = @_;
-
-  my $sub = sub {
-    my ($sub,$prefix,$data) = @_;
-
-    my $rv = "";
-    for my $key ( keys %$data ) {
-      if ( ref($data->{$key}) ) {
-        $rv .= "$prefix$key\n";
-        $rv .= $sub->($sub,"$prefix  ",$data->{$key});
-      } else {
-        $rv .= "$prefix$key: $data->{$key}\n";
-      }
-    }
-    return $rv;
-  };
-
-  my $data = $xssh->readConfig();
-  return $sub->($sub,"",$data);
-}
-
-sub main {
-  my $sethost;
-  my $setextra;
-  my $showconfig;
-  GetOptions(
-    'sethostattr' => \$sethost,
-    'setextraattr' => \$setextra,
-    'showconfig' => \$showconfig,
-  ) or pod2usage(1);
-  
-  my $xssh = App::Xssh->new();
-  if ( $sethost ) {
-    my ($name,$attr,$value) = @ARGV;
-    if ( ! ($name && $attr && $value) ) {
-      pod2usage(1);
-    }
-    $xssh->addToConfig(["hosts",$name,$attr],$value);
-    $xssh->saveConfig();
-    return 1;
-  }
-  if ( $setextra ) {
-    my ($name,$attr,$value) = @ARGV;
-    if ( ! ($name && $attr && $value) ) {
-      pod2usage(1);
-    }
-    $xssh->addToConfig(["extra",$name,$attr],$value);
-    $xssh->saveConfig();
-    return 1;
-  }
-  if ( $showconfig ) {
-    print showConfig($xssh);
-  }
-
-  if ( my ($host) = @ARGV ) {
-    my $options = getTerminalOptions($xssh,$host);
-    return launchTerminal($options);;
-  }
-}
-
-main() unless caller;
-1;
 
 __END__
 
@@ -115,8 +20,8 @@ xssh - A customisable X terminal emulator
 =head1 SYNOPSIS
 
 	xssh HOST
-	xssh --sethostattr HOST ATTRIBUTE VALUE
-	xssh --setextraattr NAME ATTRIBUTE VALUE
+	xssh --sethostopt HOST ATTRIBUTE VALUE
+	xssh --setprofileopt NAME ATTRIBUTE VALUE
 	xssh --showconfig
 
 =head1 DESCRIPTION
@@ -131,25 +36,25 @@ customised appearance.     For example, you may wish to configure 'prodserver' s
 First, you may like to define some defualts that will apply to all the remote
 servers you might log in to.
 
-	xssh --sethostattr DEFAULT scrollback 1024
-	xssh --sethostattr DEFAULT foreground blue
-	xssh --sethostattr DEFAULT background white
+	xssh --sethostopt DEFAULT scrollback 1024
+	xssh --sethostopt DEFAULT foreground blue
+	xssh --sethostopt DEFAULT background white
 
 Then you may like to override those defaults for some specific hosts.
 
-	xssh --sethostattr favourite foreground green
-	xssh --sethostattr favourite background black
-	xssh --sethostattr favourite geometry 128x70
+	xssh --sethostopt favourite foreground green
+	xssh --sethostopt favourite background black
+	xssh --sethostopt favourite geometry 128x70
 
 You may then get bored with setting all attributes for all hosts, so you
 might want to set up some "extra" attributes.
 
-	xssh --setextraattr prod foreground black
-	xssh --setextraattr prod background IndianRed
+	xssh --setprofileopt prod foreground black
+	xssh --setprofileopt prod background IndianRed
 
 You would then define which hosts take those extra attributes.
 
-	xssh --sethostattr important extra prod
+	xssh --sethostopt important extra prod
 
 FINALLY, you can use xssh to log in to those servers
 
