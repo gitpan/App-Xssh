@@ -3,9 +3,10 @@ package App::Xssh::Config;
 use strict;
 use warnings;
 
+use Moose;
 use Config::General;
 
-our $VERSION = 0.6;
+our $VERSION = 0.7;
 
 =head1 NAME
 
@@ -32,10 +33,6 @@ App::Xssh::Config - Encapsulates the configuration for xssh - using Config::Gene
 
 Construcor, just used to provide an object with access to the methods
 =cut
-sub new {
-   my $class = shift;
-   return bless {}, $class;
-}
 
 sub _configFilename {
   return "$ENV{HOME}/.xsshrc";

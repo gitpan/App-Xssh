@@ -1,27 +1,30 @@
---- #YAML:1.0
-name:               App-Xssh
-version:            0.6
-abstract:           Interface to launching X terminal windows
+---
+name: App-Xssh
+version: 0.7
 author:
-    - Evan Giles <egiles@cpan.org>
-license:            perl
-distribution_type:  module
-configure_requires:
-    ExtUtils::MakeMaker:  0
-build_requires:
-    ExtUtils::MakeMaker:  0
-requires:
-    Config::General:  2.40
-    Getopt::Long:     2.37
-    Pod::Usage:       1.35
-    X11::Terminal:    0.2
+  - 'Evan Giles <egiles@cpan.org>'
+abstract: Encapsulates the application logic for xssh
+license: perl
 resources:
-    repository:  git://github.com/egiles/app-xssh.git
-no_index:
-    directory:
-        - t
-        - inc
-generated_by:       ExtUtils::MakeMaker version 6.55_02
+  license: http://dev.perl.org/licenses/
+  repository: http://github.com/egiles/app-xssh
+requires:
+  Config::General: 2.4
+  Getopt::Long: 2.37
+  Moose: 1.09
+  Pod::Usage: 1.35
+  X11::Terminal: 0.2
+  perl: v5.6.1
+configure_requires:
+  Module::Build: 0.340201
+provides:
+  App::Xssh:
+    file: lib/App/Xssh.pm
+    version: 0.7
+  App::Xssh::Config:
+    file: lib/App/Xssh/Config.pm
+    version: 0.7
+generated_by: Module::Build version 0.340201
 meta-spec:
-    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
-    version:  1.4
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
