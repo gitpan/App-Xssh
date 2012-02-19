@@ -10,6 +10,7 @@ WriteMakefile
                            'Getopt::Long' => '2.37',
                            'Moose' => '1.09',
                            'Pod::Usage' => '1.35',
+                           'UNIVERSAL::require' => 0,
                            'X11::Terminal' => '0.2'
                          },
           'INSTALLDIRS' => 'site',
